@@ -218,24 +218,6 @@ footer p { color: var(--muted); margin: 0; max-width: 46ch; font-style: italic; 
   box-shadow: inset 0 0 0 6px color-mix(in srgb, var(--surface) 93%, transparent), inset 0 0 0 7px var(--line), 0 24px 60px rgba(20, 4, 10, 0.35);
   display: grid; gap: 0.65rem; justify-items: center;
 }
-.music { display: flex; align-items: center; justify-content: center; gap: 0.6rem; }
-.play {
-  all: unset; box-sizing: border-box; cursor: pointer; width: 2.3rem; height: 2.3rem; border-radius: 50%;
-  display: grid; place-items: center; border: 1px solid var(--gold); color: var(--gold); transition: background 0.25s, color 0.25s;
-}
-.play:hover, .music.playing .play { background: var(--gold); color: var(--bg); }
-.play:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-.play svg { width: 0.95rem; height: 0.95rem; fill: currentColor; }
-.play .i-pause, .music.playing .play .i-play { display: none; }
-.music.playing .play .i-pause { display: block; }
-.mtext { font-style: italic; color: var(--muted); font-size: 0.98rem; }
-.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
-.eq i { width: 3px; height: 4px; background: var(--gold); border-radius: 1px; }
-.music.playing .eq i { animation: eq 0.9s ease-in-out infinite alternate; }
-.music.playing .eq i:nth-child(2) { animation-delay: -0.3s; }
-.music.playing .eq i:nth-child(3) { animation-delay: -0.6s; }
-.music.playing .eq i:nth-child(4) { animation-delay: -0.15s; }
-@keyframes eq { from { height: 3px; } to { height: 14px; } }
 .ptop { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; align-items: center; justify-content: center; }
 .panel h2 { font-family: var(--font-script); font-size: clamp(2.8rem, 6vw, 4rem); color: var(--ev); line-height: 1.05; margin-block: -0.1rem -0.35rem; }
 .panel .oneliner { font-size: 1.08rem; font-style: italic; margin: 0; line-height: 1.4; }
@@ -517,15 +499,6 @@ footer p { color: var(--muted); margin: 0; max-width: 46ch; font-style: italic; 
           <div class="ptop"><span class="label">${dayInfo[e.day].short}</span><span class="status" data-status="${e.id}"></span></div>
           <h2>${e.name}</h2>
           <p class="oneliner">${e.line}</p>
-          <div class="music" hidden>
-            <button class="play" type="button" aria-label="Play ${e.name} music" aria-pressed="false">
-              <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7.5-4.5z"/></svg>
-              <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3.5h2.5v9H4.5zM9 3.5h2.5v9H9z"/></svg>
-            </button>
-            <span class="mtext">Play the ${e.name} music</span>
-            <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            <audio src="audio/${e.id}.mp3" preload="metadata" loop></audio>
-          </div>
           <dl class="facts">
             <div><dt>When</dt><dd>${t(e.start)} – ${t(e.end)} IST${local}</dd></div>
             <div><dt>Theme</dt><dd>${e.theme}</dd></div>
@@ -553,50 +526,11 @@ footer p { color: var(--muted); margin: 0; max-width: 46ch; font-style: italic; 
   pages.addEventListener("click", nameSwatch);
   pages.addEventListener("mouseover", nameSwatch);
 
-  /* ---------- Ceremony music ---------- */
-  const musicRows = [...pages.querySelectorAll(".music")];
-  const fades = new WeakMap();
-  function fadeTo(audio, target, ms, done) {
-    clearInterval(fades.get(audio));
-    const start = audio.volume, t0 = performance.now();
-    const id = setInterval(() => {
-      const k = Math.min(1, (performance.now() - t0) / ms);
-      audio.volume = Math.max(0, Math.min(1, start + (target - start) * k));
-      if (k >= 1) { clearInterval(id); if (done) done(); }
-    }, 40);
-    fades.set(audio, id);
-  }
-  function setPlaying(row, on) {
-    row.classList.toggle("playing", on);
-    const btn = row.querySelector(".play"), name = btn.getAttribute("aria-label").replace(/^(Play|Pause) /, "");
-    btn.setAttribute("aria-pressed", String(on));
-    btn.setAttribute("aria-label", (on ? "Pause " : "Play ") + name);
-    row.querySelector(".mtext").textContent = (on ? "Now playing: " : "Play the ") + name;
-  }
-  function stopAll() {
-    musicRows.forEach(row => {
-      const a = row.querySelector("audio");
-      if (!a.paused) fadeTo(a, 0, 400, () => a.pause());
-      setPlaying(row, false);
-    });
-  }
-  musicRows.forEach(row => {
-    const a = row.querySelector("audio");
-    a.addEventListener("loadedmetadata", () => { row.hidden = false; });
-    row.querySelector(".play").addEventListener("click", () => {
-      if (row.classList.contains("playing")) { fadeTo(a, 0, 500, () => a.pause()); setPlaying(row, false); return; }
-      stopAll();
-      a.volume = 0;
-      a.play().then(() => { fadeTo(a, 0.8, 1500); setPlaying(row, true); }).catch(() => say("Tap again to play the music"));
-    });
-  });
-
   /* ---------- Router ---------- */
   const views = ["home", ...events.map(e => e.id)];
   function route() {
     const h = location.hash.slice(1);
     const v = views.includes(h) ? h : "home";
-    stopAll();
     document.querySelectorAll("[data-view]").forEach(s => { s.hidden = s.dataset.view !== v; });
     links.querySelectorAll("a").forEach(a => {
       if (a.dataset.to === v) { a.setAttribute("aria-current", "page"); a.scrollIntoView({ block: "nearest", inline: "nearest" }); }
